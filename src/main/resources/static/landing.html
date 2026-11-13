@@ -38,6 +38,12 @@
         padding: 16px 0 26px;
       }
 
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
       .brand {
         display: flex;
         align-items: center;
@@ -114,6 +120,12 @@
         gap: 12px;
       }
 
+      .demo-note {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin: 12px 0 0;
+      }
+
       .button {
         display: inline-block;
         background: var(--primary);
@@ -172,10 +184,10 @@
         font-size: 1rem;
       }
 
-      .amount {
-        font-size: 2rem;
+      .preview-copy {
         margin: 0;
-        font-weight: 800;
+        color: var(--muted);
+        line-height: 1.55;
       }
 
       .grid {
@@ -229,6 +241,10 @@
           flex-direction: column;
           align-items: flex-start;
         }
+
+        .topbar-actions {
+          flex-wrap: wrap;
+        }
       }
     </style>
   </head>
@@ -241,7 +257,15 @@
             <h1>Spaza Stock & Sales Tracker</h1>
           </div>
         </div>
-        <div class="tag">✓ Smart retail operations</div>
+        <div class="topbar-actions">
+          <div class="tag">✓ Smart retail operations</div>
+          <a
+            class="button"
+            href="https://scaling-space-barnacle-r6qxxr67wqrfwqj-8080.app.github.dev/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Sign in</a>
+        </div>
       </header>
 
       <section class="hero">
@@ -254,38 +278,44 @@
             speed, and control.
           </p>
           <div class="hero-actions">
-            <a class="button" href="/index.html">Open the app</a>
+            <a
+              class="button"
+              href="https://scaling-space-barnacle-r6qxxr67wqrfwqj-8080.app.github.dev/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >Sign in to your shop</a>
             <a class="button secondary" href="#features">Explore features</a>
           </div>
+          <p class="demo-note">The demo is publicly reachable while the Codespace is active; a shop account is still required to sign in.</p>
 
           <div class="stats">
             <div class="stat">
-              <strong>24/7</strong>
-              Stock visibility
+              <strong>Catalogue</strong>
+              Search products by name or category.
             </div>
             <div class="stat">
-              <strong>4x</strong>
-              Faster restocking
+              <strong>Point of sale</strong>
+              Record sales and update stock.
             </div>
             <div class="stat">
-              <strong>100%</strong>
-              Local retail focus
+              <strong>Restock planning</strong>
+              Surface items at their reorder threshold.
             </div>
           </div>
         </div>
 
         <aside class="panel preview">
           <div class="mini-card">
-            <h3>Today's sales</h3>
-            <p class="amount">R 12,480</p>
+            <h3>Sales recording</h3>
+            <p class="preview-copy">Record a transaction and adjust on-hand stock.</p>
           </div>
           <div class="mini-card">
             <h3>Low-stock alerts</h3>
-            <p class="amount">08</p>
+            <p class="preview-copy">Prioritise products at their reorder threshold.</p>
           </div>
           <div class="mini-card">
-            <h3>Inventory value</h3>
-            <p class="amount">R 84,300</p>
+            <h3>Inventory overview</h3>
+            <p class="preview-copy">Review quantities, prices, and estimated stock value.</p>
           </div>
         </aside>
       </section>
@@ -321,7 +351,12 @@
 
       <footer class="topbar">
         <span class="hero-copy">Ready to manage your shop?</span>
-        <a class="button" href="/index.html">Go to sign in</a>
+        <a
+          class="button"
+          href="https://scaling-space-barnacle-r6qxxr67wqrfwqj-8080.app.github.dev/"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Sign in to your shop</a>
       </footer>
     </div>
   </body>
