@@ -2,6 +2,8 @@
 
 A full-stack inventory management, point-of-sale (POS), low-stock alert, and smart restocking platform built for spaza shops and small retailers. Designed and developed as part of the **Samsung Innovation Internship 2027** entry assignment (Route A).
 
+**[View the standalone landing page](src/main/resources/static/landing.html)**
+
 ---
 
 ## 🚀 Features

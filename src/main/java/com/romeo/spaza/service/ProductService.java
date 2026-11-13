@@ -50,8 +50,21 @@ public class ProductService {
 
     @Transactional
     public ProductDto createProduct(ProductDto dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("Product data cannot be null");
+        }
+        if (dto.getName() == null || dto.getName().isBlank()) {
+            throw new IllegalArgumentException("Product name is required");
+        }
+        if (dto.getPrice() == null) {
+            throw new IllegalArgumentException("Product price is required");
+        }
+        if (dto.getQuantity() == null || dto.getQuantity() < 0) {
+            throw new IllegalArgumentException("Product quantity cannot be negative");
+        }
+
         Product product = Product.builder()
-                .name(dto.getName())
+                .name(dto.getName().trim())
                 .category(dto.getCategory())
                 .price(dto.getPrice())
                 .quantity(dto.getQuantity())
@@ -93,6 +106,10 @@ public class ProductService {
 
     @Transactional
     public ProductDto restockProduct(Long id, Integer additionalQuantity) {
+        if (additionalQuantity == null || additionalQuantity <= 0) {
+            throw new IllegalArgumentException("Restock quantity must be greater than zero");
+        }
+
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 

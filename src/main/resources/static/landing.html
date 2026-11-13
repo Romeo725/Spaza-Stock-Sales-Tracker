@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Spaza Shop Portal</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --primary: #0f766e;
+        --primary-dark: #115e59;
+        --secondary: #f59e0b;
+        --text: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(180deg, #ecfeff 0%, var(--bg) 200px);
+        color: var(--text);
+      }
+
+      .container {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 24px 20px 48px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 0 26px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .brand-badge {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        font-size: 22px;
+        background: var(--primary);
+        color: white;
+        box-shadow: 0 10px 24px rgba(15, 118, 110, 0.25);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 3vw, 2.7rem);
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #ecfdf5;
+        color: var(--primary-dark);
+        border: 1px solid #a7f3d0;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        font-weight: 700;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 24px;
+        align-items: center;
+        margin: 18px 0 30px;
+      }
+
+      .hero-card, .panel {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      }
+
+      .hero-card {
+        padding: 36px 30px;
+      }
+
+      .eyebrow {
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 0.75rem;
+      }
+
+      .hero-copy {
+        font-size: 1.06rem;
+        line-height: 1.7;
+        color: var(--muted);
+        margin: 16px 0 24px;
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .button {
+        display: inline-block;
+        background: var(--primary);
+        color: white;
+        text-decoration: none;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+      }
+
+      .button.secondary {
+        background: #fff7ed;
+        color: #9a5b00;
+        border: 1px solid #fdba74;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 16px;
+        margin-top: 28px;
+      }
+
+      .stat {
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+      }
+
+      .stat strong {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+      }
+
+      .preview {
+        padding: 22px;
+        min-height: 320px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+
+      .mini-card {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 18px;
+        padding: 16px;
+      }
+
+      .mini-card h3 {
+        margin: 0 0 10px;
+        font-size: 1rem;
+      }
+
+      .amount {
+        font-size: 2rem;
+        margin: 0;
+        font-weight: 800;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 20px;
+      }
+
+      .panel {
+        padding: 24px;
+      }
+
+      .panel h2 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.2rem;
+      }
+
+      .feature-list {
+        list-style: none;
+        padding: 0;
+        margin: 18px 0 0;
+      }
+
+      .feature-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .feature-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: #ecfdf5;
+        display: grid;
+        place-items: center;
+        color: var(--primary);
+        font-weight: bold;
+      }
+
+      @media (max-width: 860px) {
+        .hero, .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-badge">🏪</div>
+          <div>
+            <h1>Spaza Stock & Sales Tracker</h1>
+          </div>
+        </div>
+        <div class="tag">✓ Smart retail operations</div>
+      </header>
+
+      <section class="hero">
+        <div class="hero-card">
+          <div class="eyebrow">Built for local shops</div>
+          <h2>Keep stock, sales, and restocks in one place.</h2>
+          <p class="hero-copy">
+            Manage product inventory, record sales with instant stock updates, and get low-stock alerts
+            before your shelves run dry. Built for spaza shops and small retail businesses that need clarity,
+            speed, and control.
+          </p>
+          <div class="hero-actions">
+            <a class="button" href="/">Open dashboard</a>
+            <a class="button secondary" href="/index.html">View app</a>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <strong>24/7</strong>
+              Stock visibility
+            </div>
+            <div class="stat">
+              <strong>4x</strong>
+              Faster restocking
+            </div>
+            <div class="stat">
+              <strong>100%</strong>
+              Local retail focus
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel preview">
+          <div class="mini-card">
+            <h3>Today's sales</h3>
+            <p class="amount">R 12,480</p>
+          </div>
+          <div class="mini-card">
+            <h3>Low-stock alerts</h3>
+            <p class="amount">08</p>
+          </div>
+          <div class="mini-card">
+            <h3>Inventory value</h3>
+            <p class="amount">R 84,300</p>
+          </div>
+        </aside>
+      </section>
+
+      <section class="grid">
+        <article class="panel">
+          <h2>Operational overview</h2>
+          <ul class="feature-list">
+            <li><span class="feature-icon">✓</span><span>Track quantities, prices, suppliers, and categories from one clean dashboard.</span></li>
+            <li><span class="feature-icon">✓</span><span>Quickly log every sale while automatically reducing inventory in real time.</span></li>
+            <li><span class="feature-icon">✓</span><span>Prioritise urgent restock decisions with smart suggestions and reorder alerts.</span></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h2>What powers it</h2>
+          <ul class="feature-list">
+            <li><span class="feature-icon">⚙</span><span>Spring Boot backend with secure user access and sales logic.</span></li>
+            <li><span class="feature-icon">⚙</span><span>Inventory insights for fast decision making and vendor planning.</span></li>
+            <li><span class="feature-icon">⚙</span><span>Responsive, lightweight interface ready for sales-floor use.</span></li>
+          </ul>
+        </article>
+
+        <article class="panel">
+          <h2>Key benefits</h2>
+          <ul class="feature-list">
+            <li><span class="feature-icon">★</span><span>Reduce stock-outs and missed sales opportunities.</span></li>
+            <li><span class="feature-icon">★</span><span>Improve reporting with a faster, more organised workflow.</span></li>
+            <li><span class="feature-icon">★</span><span>Scale from a single spaza shop to a small retail operation.</span></li>
+          </ul>
+        </article>
+      </section>
+    </div>
+  </body>
+</html>

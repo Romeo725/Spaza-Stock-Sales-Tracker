@@ -4,19 +4,27 @@ import com.romeo.spaza.dto.SaleRequest;
 import com.romeo.spaza.dto.SaleResponse;
 import com.romeo.spaza.exception.InsufficientStockException;
 import com.romeo.spaza.model.Product;
+import com.romeo.spaza.model.Role;
 import com.romeo.spaza.model.Sale;
+import com.romeo.spaza.model.User;
 import com.romeo.spaza.repository.ProductRepository;
 import com.romeo.spaza.repository.SaleRepository;
+import com.romeo.spaza.repository.UserRepository;
+import com.romeo.spaza.security.JwtUtils;
 import com.romeo.spaza.service.AuthService;
 import com.romeo.spaza.service.SaleService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,15 +41,39 @@ class SaleServiceTest {
     private ProductRepository productRepository;
 
     @Mock
-    private AuthService authService;
+    private UserRepository userRepository;
 
-    @InjectMocks
+    @Mock
+    private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    private JwtUtils jwtUtils;
+
+    private AuthService authService;
     private SaleService saleService;
 
     private Product product;
 
     @BeforeEach
     void setUp() {
+        jwtUtils = new JwtUtils();
+        authService = new AuthService(userRepository, passwordEncoder, authenticationManager, jwtUtils);
+        saleService = new SaleService(saleRepository, productRepository, authService);
+
+        SecurityContextHolder.clearContext();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("owner", "password", List.of())
+        );
+
+        User currentUser = User.builder()
+                .username("owner")
+                .fullName("Romeo Mangena")
+                .role(Role.ROLE_OWNER)
+                .build();
+        lenient().when(userRepository.findByUsername("owner")).thenReturn(Optional.of(currentUser));
+
         product = Product.builder()
                 .id(1L)
                 .name("Cooking Oil 750ml")
