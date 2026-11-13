@@ -305,6 +305,9 @@
                         >
                             {loggingIn ? 'Signing in…' : 'Sign in'}
                         </button>
+                        <a href="/landing.html" className="block text-center text-sm font-medium text-emerald-700 hover:text-emerald-800">
+                            Back to shop overview
+                        </a>
                     </form>
                 </main>
             );
@@ -319,6 +322,9 @@
                         <span>Signed in as <strong>{user.fullName || user.username}</strong> ({user.role})</span>
                     </div>
                     <div className="flex items-center space-x-3 mt-1 sm:mt-0">
+                        <a href="/landing.html" className="rounded px-3 py-1 font-medium transition hover:bg-emerald-800">
+                            Shop overview
+                        </a>
                         <button onClick={handleLogout} className="rounded bg-emerald-800 px-3 py-1 font-medium transition hover:bg-emerald-700">
                             Sign out
                         </button>
