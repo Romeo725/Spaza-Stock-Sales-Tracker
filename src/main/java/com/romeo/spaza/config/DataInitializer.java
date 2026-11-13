@@ -8,6 +8,7 @@ import com.romeo.spaza.repository.ProductRepository;
 import com.romeo.spaza.repository.SaleRepository;
 import com.romeo.spaza.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Component
+@Profile("!production")
 public class DataInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;

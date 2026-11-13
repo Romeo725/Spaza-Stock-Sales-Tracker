@@ -24,14 +24,16 @@ A full-stack inventory management, point-of-sale (POS), low-stock alert, and sma
 
 ---
 
-## 🔑 Evaluator Test Access
+## 🔑 Local Test Accounts
 
-The application automatically seeds test accounts upon startup:
+The default (local development) profile seeds test accounts on startup:
 
 | Role | Username | Password |
 | :--- | :--- | :--- |
 | **Owner** | `owner` | `password123` |
 | **Staff** | `staff` | `password123` |
+
+These credentials are for local testing only. The production profile does not seed demo accounts or sample sales. Production creates its initial owner from the private `APP_BOOTSTRAP_OWNER_USERNAME` and `APP_BOOTSTRAP_OWNER_PASSWORD` environment variables.
 
 ---
 
@@ -42,7 +44,13 @@ The application automatically seeds test accounts upon startup:
    mvn spring-boot:run
    ```
 2. **Access the Web Dashboard**:
-   Open [http://localhost:8080](http://localhost:8080) in your browser. Use the top test access banner to instantly log in as Owner or Staff.
+   Open [http://localhost:8080](http://localhost:8080) and sign in with one of the local test accounts above.
+
+## ☁️ Render Deployment
+
+The root [`render.yaml`](render.yaml) Blueprint provisions the Spring Boot application and persistent PostgreSQL database together. It uses paid Render plans. During the initial Blueprint setup, provide an owner username and a strong password of at least 12 characters when prompted; Render generates the JWT secret. The Spring application serves both the dashboard and API from the same origin.
+
+The public GitHub Pages site is a static landing page only; it does not run the Spring Boot API.
 
 ---
 

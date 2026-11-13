@@ -1,0 +1,43 @@
+databases:
+  - name: spaza-stock-db
+    databaseName: spaza_stock_sales
+    user: spaza_stock_user
+    plan: 0.1c-256mb
+
+services:
+  - type: web
+    name: spaza-stock-sales-tracker
+    runtime: docker
+    plan: 0.5c-512mb
+    healthCheckPath: /
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: production
+      - key: DB_HOST
+        fromDatabase:
+          name: spaza-stock-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: spaza-stock-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: spaza-stock-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: spaza-stock-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: spaza-stock-db
+          property: password
+      - key: APP_JWT_SECRET
+        generateValue: true
+      - key: APP_BOOTSTRAP_OWNER_USERNAME
+        sync: false
+      - key: APP_BOOTSTRAP_OWNER_PASSWORD
+        sync: false
+      - key: APP_BOOTSTRAP_OWNER_FULL_NAME
+        value: Shop Owner
