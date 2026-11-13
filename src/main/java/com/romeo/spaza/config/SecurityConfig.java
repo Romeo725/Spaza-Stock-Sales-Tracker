@@ -54,7 +54,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/h2-console/**", "/", "/index.html", "/landing.html", "/favicon.ico").permitAll()
+                .requestMatchers("/api/auth/login", "/h2-console/**", "/", "/index.html", "/landing.html", "/assets/**", "/favicon.ico").permitAll()
                 .anyRequest().authenticated()
             );
 

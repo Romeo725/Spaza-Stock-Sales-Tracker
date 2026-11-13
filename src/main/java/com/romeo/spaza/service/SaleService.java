@@ -42,7 +42,7 @@ public class SaleService {
             throw new IllegalArgumentException("Sale quantity must be greater than zero");
         }
 
-        Product product = productRepository.findById(request.getProductId())
+        Product product = productRepository.findByIdForUpdate(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + request.getProductId()));
 
         if (product.getQuantity() < request.getQuantity()) {

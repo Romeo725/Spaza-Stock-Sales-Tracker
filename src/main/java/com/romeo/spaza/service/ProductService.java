@@ -79,7 +79,7 @@ public class ProductService {
 
     @Transactional
     public ProductDto updateProduct(Long id, ProductDto dto) {
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
         product.setName(dto.getName());
@@ -110,7 +110,7 @@ public class ProductService {
             throw new IllegalArgumentException("Restock quantity must be greater than zero");
         }
 
-        Product product = productRepository.findById(id)
+        Product product = productRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
 
         product.setQuantity(product.getQuantity() + additionalQuantity);

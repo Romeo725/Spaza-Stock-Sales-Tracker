@@ -1,0 +1,855 @@
+import { useEffect, useState } from 'react';
+
+    const API_BASE = '/api';
+
+    function App() {
+        const [activeTab, setActiveTab] = useState('dashboard');
+        const [user, setUser] = useState(null);
+        const [token, setToken] = useState(localStorage.getItem('token') || '');
+        const [restoringSession, setRestoringSession] = useState(Boolean(localStorage.getItem('token')));
+        const [loginUsername, setLoginUsername] = useState('');
+        const [loginPassword, setLoginPassword] = useState('');
+        const [loginError, setLoginError] = useState('');
+        const [loggingIn, setLoggingIn] = useState(false);
+
+        const [products, setProducts] = useState([]);
+        const [lowStockProducts, setLowStockProducts] = useState([]);
+        const [restockSuggestions, setRestockSuggestions] = useState([]);
+        const [sales, setSales] = useState([]);
+        const [summary, setSummary] = useState(null);
+        const [loading, setLoading] = useState(false);
+        const [notification, setNotification] = useState(null);
+
+        // Modals
+        const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+        const [editingProduct, setEditingProduct] = useState(null);
+
+        // POS Form
+        const [posProductId, setPosProductId] = useState('');
+        const [posQuantity, setPosQuantity] = useState(1);
+
+        // Search & Filter
+        const [searchTerm, setSearchTerm] = useState('');
+        const [selectedCategory, setSelectedCategory] = useState('ALL');
+
+        useEffect(() => {
+            if (!token) return;
+
+            let active = true;
+            const restoreSession = async () => {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/me`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error('Your session has expired. Please sign in again.');
+
+                    const currentUser = await response.json();
+                    if (!active) return;
+                    setUser(currentUser);
+                    setRestoringSession(false);
+                    await fetchData();
+                } catch (error) {
+                    if (!active) return;
+                    localStorage.removeItem('token');
+                    setToken('');
+                    setUser(null);
+                    setRestoringSession(false);
+                    setLoginError(error.message || 'Unable to restore your session.');
+                }
+            };
+
+            restoreSession();
+            return () => { active = false; };
+        }, [token]);
+
+        const showNotice = (msg, type = 'success') => {
+            setNotification({ msg, type });
+            setTimeout(() => setNotification(null), 4000);
+        };
+
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const headers = { 'Authorization': `Bearer ${token}` };
+                const [prodRes, lowRes, restockRes, salesRes, sumRes] = await Promise.all([
+                    fetch(`${API_BASE}/products`, { headers }),
+                    fetch(`${API_BASE}/products/low-stock`, { headers }),
+                    fetch(`${API_BASE}/products/restock-suggestions`, { headers }),
+                    fetch(`${API_BASE}/sales`, { headers }),
+                    fetch(`${API_BASE}/dashboard/summary`, { headers })
+                ]);
+
+                const responses = [prodRes, lowRes, restockRes, salesRes, sumRes];
+                if (responses.some(response => !response.ok)) {
+                    throw new Error('Unable to load shop data. Please try again.');
+                }
+
+                const [productData, lowStockData, restockData, salesData, summaryData] = await Promise.all(
+                    responses.map(response => response.json())
+                );
+                setProducts(productData);
+                setLowStockProducts(lowStockData);
+                setRestockSuggestions(restockData);
+                setSales(salesData);
+                setSummary(summaryData);
+            } catch (err) {
+                showNotice(err.message || 'Error loading shop data', 'error');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleLogin = async (event) => {
+            event.preventDefault();
+            setLoggingIn(true);
+            setLoginError('');
+            try {
+                const res = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: loginUsername, password: loginPassword })
+                });
+
+                if (!res.ok) throw new Error('Sign-in failed. Check your username and password.');
+                const data = await res.json();
+                localStorage.setItem('token', data.token);
+                setUser(data);
+                setToken(data.token);
+                setLoginPassword('');
+            } catch (e) {
+                setLoginError(e.message || 'Unable to sign in. Please try again.');
+            } finally {
+                setLoggingIn(false);
+            }
+        };
+
+        const handleLogout = () => {
+            localStorage.removeItem('token');
+            setToken('');
+            setUser(null);
+            setProducts([]);
+            setLowStockProducts([]);
+            setRestockSuggestions([]);
+            setSales([]);
+            setSummary(null);
+        };
+
+        const handleRecordSale = async (e) => {
+            e.preventDefault();
+            if (!posProductId) {
+                showNotice('Please select a product', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/sales`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ productId: parseInt(posProductId), quantity: parseInt(posQuantity) })
+                });
+
+                if (res.ok) {
+                    showNotice('Sale recorded successfully!');
+                    setPosQuantity(1);
+                    fetchData();
+                } else {
+                    const err = await res.json();
+                    showNotice(err.message || 'Failed to record sale', 'error');
+                }
+            } catch (err) {
+                showNotice('Error recording sale', 'error');
+            }
+        };
+
+        const handleSaveProduct = async (productData) => {
+            try {
+                const url = editingProduct ? `${API_BASE}/products/${editingProduct.id}` : `${API_BASE}/products`;
+                const method = editingProduct ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(productData)
+                });
+
+                if (res.ok) {
+                    showNotice(`Product ${editingProduct ? 'updated' : 'added'} successfully!`);
+                    setIsAddModalOpen(false);
+                    setEditingProduct(null);
+                    fetchData();
+                } else {
+                    showNotice('Failed to save product', 'error');
+                }
+            } catch (err) {
+                showNotice('Error saving product', 'error');
+            }
+        };
+
+        const handleDeleteProduct = async (id) => {
+            if (!confirm('Are you sure you want to delete this product?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/products/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showNotice('Product deleted successfully');
+                    fetchData();
+                } else {
+                    showNotice('Failed to delete product', 'error');
+                }
+            } catch (e) {
+                showNotice('Error deleting product', 'error');
+            }
+        };
+
+        const handleRestockOneClick = async (productId, addQty) => {
+            try {
+                const res = await fetch(`${API_BASE}/products/${productId}/restock?quantity=${addQty}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    showNotice(`Restocked ${addQty} units successfully!`);
+                    fetchData();
+                } else {
+                    showNotice('Restock failed', 'error');
+                }
+            } catch (e) {
+                showNotice('Restock failed', 'error');
+            }
+        };
+
+        const filteredProducts = products.filter(p => {
+            const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesCat = selectedCategory === 'ALL' || p.category === selectedCategory;
+            return matchesSearch && matchesCat;
+        });
+
+        const categories = ['ALL', ...new Set(products.map(p => p.category).filter(Boolean))];
+
+        if (!user) {
+            if (restoringSession) {
+                return (
+                    <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
+                        <p className="text-sm font-medium text-slate-600">Restoring your session…</p>
+                    </main>
+                );
+            }
+
+            return (
+                <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-10">
+                    <form onSubmit={handleLogin} className="w-full max-w-md space-y-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg">
+                        <div className="text-center">
+                            <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-600 text-2xl text-white">🏪</div>
+                            <h1 className="text-2xl font-bold text-slate-900">Sign in to your shop</h1>
+                            <p className="mt-2 text-sm text-slate-500">Use your owner or staff account to access inventory and sales.</p>
+                        </div>
+                        {loginError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{loginError}</p>}
+                        <label className="block text-sm font-medium text-slate-700">
+                            Username
+                            <input
+                                autoComplete="username"
+                                required
+                                value={loginUsername}
+                                onChange={event => setLoginUsername(event.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                            />
+                        </label>
+                        <label className="block text-sm font-medium text-slate-700">
+                            Password
+                            <input
+                                type="password"
+                                autoComplete="current-password"
+                                required
+                                value={loginPassword}
+                                onChange={event => setLoginPassword(event.target.value)}
+                                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                            />
+                        </label>
+                        <button
+                            type="submit"
+                            disabled={loggingIn}
+                            className="w-full rounded-lg bg-emerald-700 px-4 py-3 font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {loggingIn ? 'Signing in…' : 'Sign in'}
+                        </button>
+                        <a href="/landing.html" className="block text-center text-sm font-medium text-emerald-700 hover:text-emerald-800">
+                            Back to shop overview
+                        </a>
+                    </form>
+                </main>
+            );
+        }
+
+        return (
+            <div className="min-h-screen flex flex-col bg-slate-50">
+                {/* Signed-in user */}
+                <div className="bg-emerald-900 text-white text-xs py-2 px-4 flex flex-wrap justify-between items-center shadow-inner">
+                    <div className="flex items-center space-x-2">
+                        <span className="font-semibold bg-emerald-700 px-2 py-0.5 rounded">SHOP ACCOUNT</span>
+                        <span>Signed in as <strong>{user.fullName || user.username}</strong> ({user.role})</span>
+                    </div>
+                    <div className="flex items-center space-x-3 mt-1 sm:mt-0">
+                        <a href="/landing.html" className="rounded px-3 py-1 font-medium transition hover:bg-emerald-800">
+                            Shop overview
+                        </a>
+                        <button onClick={handleLogout} className="rounded bg-emerald-800 px-3 py-1 font-medium transition hover:bg-emerald-700">
+                            Sign out
+                        </button>
+                    </div>
+                </div>
+
+                {/* Main Header & Navbar */}
+                <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+                        <div className="flex items-center space-x-3">
+                            <div className="bg-emerald-600 text-white p-2.5 rounded-xl shadow">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 11h14l1 12H4L5 11z"/></svg>
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold text-slate-900 leading-tight">Spaza Stock & Sales Tracker</h1>
+                                <p className="text-xs text-slate-500">Digitised Inventory & Smart Restocking Platform</p>
+                            </div>
+                        </div>
+
+                        {/* Navigation Tabs */}
+                        <nav className="flex space-x-1 sm:space-x-2">
+                            {[
+                                { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                                { id: 'inventory', label: 'Inventory', icon: '📦' },
+                                { id: 'pos', label: 'Point of Sale', icon: '🛒' },
+                                { id: 'restock', label: 'Smart Restock', icon: '🔔', badge: lowStockProducts.length },
+                                { id: 'analytics', label: 'Sales History', icon: '📈' }
+                            ].map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`relative px-3 py-2 rounded-lg text-sm font-semibold flex items-center space-x-1.5 transition ${activeTab === tab.id ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'text-slate-600 hover:bg-slate-100'}`}
+                                >
+                                    <span>{tab.icon}</span>
+                                    <span>{tab.label}</span>
+                                    {tab.badge > 0 && (
+                                        <span className="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full animate-pulse">{tab.badge}</span>
+                                    )}
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+                </header>
+
+                {/* Notifications Banner */}
+                {notification && (
+                    <div className={`p-4 text-center font-medium text-white shadow-md transition ${notification.type === 'error' ? 'bg-red-600' : 'bg-emerald-600'}`}>
+                        {notification.msg}
+                    </div>
+                )}
+
+                {/* Main Content Area */}
+                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+                    {/* DASHBOARD TAB */}
+                    {activeTab === 'dashboard' && (
+                        <div className="space-y-6">
+                            {/* KPI Grid */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase text-slate-400">Total Sales Revenue</p>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{summary ? summary.totalRevenue.toFixed(2) : '0.00'}</h3>
+                                        <p className="text-xs text-emerald-600 mt-1">Total recorded sales</p>
+                                    </div>
+                                    <div className="bg-emerald-100 text-emerald-600 p-3 rounded-xl">💰</div>
+                                </div>
+
+                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase text-slate-400">Total Products</p>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">{summary ? summary.totalProductsCount : 0}</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Inventory items</p>
+                                    </div>
+                                    <div className="bg-blue-100 text-blue-600 p-3 rounded-xl">📦</div>
+                                </div>
+
+                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase text-slate-400">Low Stock Warnings</p>
+                                        <h3 className="text-2xl font-bold text-amber-600 mt-1">{summary ? summary.lowStockCount : 0}</h3>
+                                        <p className="text-xs text-amber-600 mt-1">Requires attention</p>
+                                    </div>
+                                    <div className="bg-amber-100 text-amber-600 p-3 rounded-xl">⚠️</div>
+                                </div>
+
+                                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                                    <div>
+                                        <p className="text-xs font-semibold uppercase text-slate-400">Total Stock Value</p>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{summary ? summary.totalInventoryValue.toFixed(2) : '0.00'}</h3>
+                                        <p className="text-xs text-slate-500 mt-1">Current asset valuation</p>
+                                    </div>
+                                    <div className="bg-purple-100 text-purple-600 p-3 rounded-xl">🏷️</div>
+                                </div>
+                            </div>
+
+                            {/* Alert Banner for Low Stock */}
+                            {lowStockProducts.length > 0 && (
+                                <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl flex justify-between items-center">
+                                    <div className="flex items-center space-x-3">
+                                        <span className="text-2xl">🚨</span>
+                                        <div>
+                                            <h4 className="font-bold text-amber-900">{lowStockProducts.length} Product(s) Below Reorder Level</h4>
+                                            <p className="text-xs text-amber-700">Stock shortages can cause lost sales. Check Smart Restock suggestions for recommended order quantities.</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setActiveTab('restock')}
+                                        className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition shadow"
+                                    >
+                                        View Restock Suggestions →
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Recent Sales & Fast POS */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                                    <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center space-x-2">
+                                        <span>📜</span> <span>Recent Sales Activity</span>
+                                    </h3>
+                                    {sales.length === 0 ? (
+                                        <p className="text-slate-400 text-sm py-4">No sales recorded yet.</p>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-sm">
+                                                <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                                <tr>
+                                                    <th className="p-3">Product</th>
+                                                    <th className="p-3">Qty</th>
+                                                    <th className="p-3">Total</th>
+                                                    <th className="p-3">Date</th>
+                                                    <th className="p-3">Recorded By</th>
+                                                </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100">
+                                                {sales.slice(0, 5).map(s => (
+                                                    <tr key={s.id} className="hover:bg-slate-50">
+                                                        <td className="p-3 font-semibold text-slate-800">{s.productName}</td>
+                                                        <td className="p-3">{s.quantity}</td>
+                                                        <td className="p-3 font-bold text-emerald-600">R{s.totalPrice.toFixed(2)}</td>
+                                                        <td className="p-3 text-xs text-slate-500">{new Date(s.saleDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                                                        <td className="p-3 text-xs font-medium text-slate-600"><span className="bg-slate-100 px-2 py-0.5 rounded">{s.recordedByUsername}</span></td>
+                                                    </tr>
+                                                ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                                    <div>
+                                        <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center space-x-2">
+                                            <span>⚡</span> <span>Quick Sale Recorder</span>
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mb-4">Record over-the-counter sale instantly</p>
+
+                                        <form onSubmit={handleRecordSale} className="space-y-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1">Select Product</label>
+                                                <select
+                                                    value={posProductId}
+                                                    onChange={e => setPosProductId(e.target.value)}
+                                                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                    required
+                                                >
+                                                    <option value="">-- Choose Item --</option>
+                                                    {products.map(p => (
+                                                        <option key={p.id} value={p.id} disabled={p.quantity === 0}>
+                                                            {p.name} (R{p.price.toFixed(2)}) - Stock: {p.quantity} {p.quantity === 0 ? '[OUT OF STOCK]' : ''}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-700 mb-1">Quantity</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={posQuantity}
+                                                    onChange={e => setPosQuantity(e.target.value)}
+                                                    className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                                                    required
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="submit"
+                                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm shadow transition"
+                                            >
+                                                Record Sale Now
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* INVENTORY TAB */}
+                    {activeTab === 'inventory' && (
+                        <div className="space-y-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                <div className="flex flex-1 items-center space-x-3 w-full sm:w-auto">
+                                    <input
+                                        type="text"
+                                        placeholder="Search by product name or category..."
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                        className="p-2.5 border border-slate-300 rounded-lg text-sm w-full sm:w-72 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    />
+                                    <select
+                                        value={selectedCategory}
+                                        onChange={e => setSelectedCategory(e.target.value)}
+                                        className="p-2.5 border border-slate-300 rounded-lg text-sm bg-slate-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                    >
+                                        {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    </select>
+                                </div>
+
+                                {user.role === 'ROLE_OWNER' && (
+                                    <button
+                                        onClick={() => { setEditingProduct(null); setIsAddModalOpen(true); }}
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-bold shadow flex items-center space-x-2 transition"
+                                    >
+                                        <span>➕ Add New Product</span>
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-100 text-slate-600 border-b border-slate-200 font-semibold">
+                                    <tr>
+                                        <th className="p-4">Product Name</th>
+                                        <th className="p-4">Category</th>
+                                        <th className="p-4">Price</th>
+                                        <th className="p-4">Stock Level</th>
+                                        <th className="p-4">Reorder Level</th>
+                                        <th className="p-4">Status</th>
+                                        {user.role === 'ROLE_OWNER' && <th className="p-4 text-right">Actions</th>}
+                                    </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                    {filteredProducts.length === 0 ? (
+                                        <tr><td colSpan="7" className="p-6 text-center text-slate-400">No products match your search.</td></tr>
+                                    ) : (
+                                        filteredProducts.map(p => (
+                                            <tr key={p.id} className="hover:bg-slate-50 transition">
+                                                <td className="p-4 font-bold text-slate-900">{p.name}</td>
+                                                <td className="p-4"><span className="bg-slate-100 text-slate-700 px-2 py-1 rounded-md text-xs">{p.category || 'General'}</span></td>
+                                                <td className="p-4 font-bold text-emerald-600">R{p.price.toFixed(2)}</td>
+                                                <td className="p-4 font-semibold">{p.quantity} units</td>
+                                                <td className="p-4 text-slate-500">{p.reorderLevel} units</td>
+                                                <td className="p-4">
+                                                    {p.quantity === 0 ? (
+                                                        <span className="bg-red-100 text-red-700 font-bold text-xs px-2.5 py-1 rounded-full">OUT OF STOCK</span>
+                                                    ) : p.quantity <= p.reorderLevel ? (
+                                                        <span className="bg-amber-100 text-amber-700 font-bold text-xs px-2.5 py-1 rounded-full">LOW STOCK</span>
+                                                    ) : (
+                                                        <span className="bg-emerald-100 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full">IN STOCK</span>
+                                                    )}
+                                                </td>
+                                                {user.role === 'ROLE_OWNER' && (
+                                                    <td className="p-4 text-right space-x-2">
+                                                        <button
+                                                            onClick={() => { setEditingProduct(p); setIsAddModalOpen(true); }}
+                                                            className="text-blue-600 hover:text-blue-800 font-medium text-xs border border-blue-200 px-2.5 py-1 rounded hover:bg-blue-50"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteProduct(p.id)}
+                                                            className="text-red-600 hover:text-red-800 font-medium text-xs border border-red-200 px-2.5 py-1 rounded hover:bg-red-50"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        ))
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* POINT OF SALE TAB */}
+                    {activeTab === 'pos' && (
+                        <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border border-slate-200 shadow-md space-y-6">
+                            <div className="border-b border-slate-100 pb-4">
+                                <h2 className="text-2xl font-bold text-slate-900 flex items-center space-x-2">
+                                    <span>🛒</span> <span>Point of Sale Checkout</span>
+                                </h2>
+                                <p className="text-xs text-slate-500 mt-1">Record items sold over the counter. Stock updates automatically.</p>
+                            </div>
+
+                            <form onSubmit={handleRecordSale} className="space-y-5">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Select Item to Sell</label>
+                                    <select
+                                        value={posProductId}
+                                        onChange={e => setPosProductId(e.target.value)}
+                                        className="w-full p-3 border border-slate-300 rounded-xl text-base bg-slate-50 focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        required
+                                    >
+                                        <option value="">-- Choose Product --</option>
+                                        {products.map(p => (
+                                            <option key={p.id} value={p.id} disabled={p.quantity === 0}>
+                                                {p.name} — Price: R{p.price.toFixed(2)} | In Stock: {p.quantity} {p.quantity === 0 ? '(OUT OF STOCK)' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {posProductId && (() => {
+                                    const selectedP = products.find(p => p.id === parseInt(posProductId));
+                                    if (!selectedP) return null;
+                                    const total = selectedP.price * posQuantity;
+                                    return (
+                                        <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-200 space-y-2">
+                                            <div className="flex justify-between text-sm text-slate-700">
+                                                <span>Unit Price:</span>
+                                                <span className="font-bold">R{selectedP.price.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm text-slate-700">
+                                                <span>Available Stock:</span>
+                                                <span className="font-bold">{selectedP.quantity} units</span>
+                                            </div>
+                                            <div className="flex justify-between text-lg font-extrabold text-emerald-800 border-t border-emerald-200 pt-2 mt-2">
+                                                <span>Total Amount Due:</span>
+                                                <span>R{total.toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Quantity Sold</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={posQuantity}
+                                        onChange={e => setPosQuantity(e.target.value)}
+                                        className="w-full p-3 border border-slate-300 rounded-xl text-base focus:ring-2 focus:ring-emerald-500 outline-none"
+                                        required
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-xl text-base shadow-lg transition"
+                                >
+                                    Complete Sale & Deduct Stock
+                                </button>
+                            </form>
+                        </div>
+                    )}
+
+                    {/* SMART RESTOCK TAB */}
+                    {activeTab === 'restock' && (
+                        <div className="space-y-6">
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                                        <span>🔔</span> <span>Smart Restocking Suggestions</span>
+                                    </h2>
+                                    <p className="text-xs text-slate-500 mt-1">Automated reorder recommendation engine based on reorder thresholds and stock shortages.</p>
+                                </div>
+                                <div className="bg-purple-50 text-purple-800 border border-purple-200 px-4 py-2 rounded-xl text-xs font-semibold">
+                                    Target Stock Formula: Recommended = (Reorder Level × 2) - Current Stock
+                                </div>
+                            </div>
+
+                            {restockSuggestions.length === 0 ? (
+                                <div className="bg-emerald-50 border border-emerald-200 p-8 rounded-2xl text-center space-y-2">
+                                    <span className="text-4xl">🎉</span>
+                                    <h3 className="text-lg font-bold text-emerald-900">All Stock Levels Optimal!</h3>
+                                    <p className="text-xs text-emerald-700">No products are currently below their reorder threshold.</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                                    {restockSuggestions.map(item => (
+                                        <div key={item.productId} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                                            <div>
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h3 className="font-bold text-slate-900 text-base">{item.productName}</h3>
+                                                    <span className={`text-xs font-extrabold px-2 py-0.5 rounded ${item.urgency === 'CRITICAL' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                        {item.urgency}
+                                                    </span>
+                                                </div>
+
+                                                <div className="space-y-1.5 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100 mt-3">
+                                                    <div className="flex justify-between">
+                                                        <span>Current Inventory:</span>
+                                                        <span className="font-bold text-red-600">{item.currentStock} units</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Reorder Level:</span>
+                                                        <span className="font-semibold">{item.reorderLevel} units</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span>Supplier:</span>
+                                                        <span className="font-semibold text-slate-800">{item.supplierName}</span>
+                                                    </div>
+                                                    <div className="flex justify-between border-t border-slate-200 pt-1 text-emerald-700 font-bold">
+                                                        <span>Suggested Order Qty:</span>
+                                                        <span>+{item.recommendedOrderQuantity} units</span>
+                                                    </div>
+                                                    <div className="flex justify-between font-bold text-slate-800">
+                                                        <span>Est. Supplier Cost:</span>
+                                                        <span>R{item.estimatedRestockCost.toFixed(2)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleRestockOneClick(item.productId, item.recommendedOrderQuantity)}
+                                                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center space-x-1"
+                                            >
+                                                <span>⚡ 1-Click Restock (+{item.recommendedOrderQuantity})</span>
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* SALES HISTORY TAB */}
+                    {activeTab === 'analytics' && (
+                        <div className="space-y-6">
+                            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-xl font-bold text-slate-900 flex items-center space-x-2">
+                                        <span>📈</span> <span>Sales Audit History & Reports</span>
+                                    </h2>
+                                    <p className="text-xs text-slate-500 mt-1">Complete record of all completed over-the-counter sales transactions.</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-slate-100 text-slate-600 border-b border-slate-200 font-semibold">
+                                    <tr>
+                                        <th className="p-4">Transaction ID</th>
+                                        <th className="p-4">Product Name</th>
+                                        <th className="p-4">Quantity Sold</th>
+                                        <th className="p-4">Unit Price</th>
+                                        <th className="p-4">Total Revenue</th>
+                                        <th className="p-4">Date & Time</th>
+                                        <th className="p-4">Cashier / Staff</th>
+                                    </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100">
+                                    {sales.length === 0 ? (
+                                        <tr><td colSpan="7" className="p-6 text-center text-slate-400">No sales transactions logged.</td></tr>
+                                    ) : (
+                                        sales.map(s => (
+                                            <tr key={s.id} className="hover:bg-slate-50 transition">
+                                                <td className="p-4 font-mono text-xs text-slate-400">#SALE-{s.id}</td>
+                                                <td className="p-4 font-bold text-slate-900">{s.productName}</td>
+                                                <td className="p-4">{s.quantity}</td>
+                                                <td className="p-4 text-slate-600">R{s.unitPrice.toFixed(2)}</td>
+                                                <td className="p-4 font-bold text-emerald-600">R{s.totalPrice.toFixed(2)}</td>
+                                                <td className="p-4 text-xs text-slate-500">{new Date(s.saleDate).toLocaleString()}</td>
+                                                <td className="p-4"><span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium">{s.recordedByUsername}</span></td>
+                                            </tr>
+                                        ))
+                                    )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+                </main>
+
+                {/* ADD / EDIT PRODUCT MODAL */}
+                {isAddModalOpen && (
+                    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                            <h3 className="text-lg font-bold text-slate-900">
+                                {editingProduct ? 'Edit Product' : 'Add New Product'}
+                            </h3>
+
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                const form = e.target;
+                                handleSaveProduct({
+                                    name: form.name.value,
+                                    category: form.category.value,
+                                    price: parseFloat(form.price.value),
+                                    quantity: parseInt(form.quantity.value),
+                                    reorderLevel: parseInt(form.reorderLevel.value),
+                                    supplierName: form.supplierName.value
+                                });
+                            }} className="space-y-3 text-sm">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 mb-1">Product Name</label>
+                                    <input name="name" defaultValue={editingProduct ? editingProduct.name : ''} required className="w-full p-2.5 border rounded-lg" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+                                        <input name="category" defaultValue={editingProduct ? editingProduct.category : 'General'} required className="w-full p-2.5 border rounded-lg" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Price (R)</label>
+                                        <input name="price" type="number" step="0.01" defaultValue={editingProduct ? editingProduct.price : ''} required className="w-full p-2.5 border rounded-lg" />
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Stock Quantity</label>
+                                        <input name="quantity" type="number" defaultValue={editingProduct ? editingProduct.quantity : '10'} required className="w-full p-2.5 border rounded-lg" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Reorder Threshold</label>
+                                        <input name="reorderLevel" type="number" defaultValue={editingProduct ? editingProduct.reorderLevel : '5'} required className="w-full p-2.5 border rounded-lg" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-700 mb-1">Supplier Name</label>
+                                    <input name="supplierName" defaultValue={editingProduct ? editingProduct.supplierName : 'Local Wholesaler'} className="w-full p-2.5 border rounded-lg" />
+                                </div>
+
+                                <div className="flex justify-end space-x-3 pt-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsAddModalOpen(false)}
+                                        className="px-4 py-2 border rounded-lg text-slate-600 font-medium"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold"
+                                    >
+                                        Save Product
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+export default App;

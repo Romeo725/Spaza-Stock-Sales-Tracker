@@ -89,7 +89,7 @@ class SaleServiceTest {
         request.setProductId(1L);
         request.setQuantity(2);
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
         when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> {
             Sale s = invocation.getArgument(0);
             s.setId(100L);
@@ -102,6 +102,7 @@ class SaleServiceTest {
         assertEquals(100L, response.getId());
         assertEquals(8, product.getQuantity()); // Stock deducted from 10 to 8
         assertEquals(new BigDecimal("64.00"), response.getTotalPrice()); // 2 * 32.00
+        verify(productRepository).findByIdForUpdate(1L);
     }
 
     @Test
@@ -110,7 +111,7 @@ class SaleServiceTest {
         request.setProductId(1L);
         request.setQuantity(15); // Product has 10
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(product));
 
         assertThrows(InsufficientStockException.class, () -> saleService.recordSale(request));
         verify(saleRepository, never()).save(any(Sale.class));
