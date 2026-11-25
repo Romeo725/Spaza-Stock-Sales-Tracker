@@ -11,6 +11,11 @@ import { useEffect, useState } from 'react';
         const [loginPassword, setLoginPassword] = useState('');
         const [loginError, setLoginError] = useState('');
         const [loggingIn, setLoggingIn] = useState(false);
+        const [staffUsername, setStaffUsername] = useState('');
+        const [staffFullName, setStaffFullName] = useState('');
+        const [staffPassword, setStaffPassword] = useState('');
+        const [staffRegistrationError, setStaffRegistrationError] = useState('');
+        const [registeringStaff, setRegisteringStaff] = useState(false);
 
         const [products, setProducts] = useState([]);
         const [lowStockProducts, setLowStockProducts] = useState([]);
@@ -120,6 +125,41 @@ import { useEffect, useState } from 'react';
                 setLoginError(e.message || 'Unable to sign in. Please try again.');
             } finally {
                 setLoggingIn(false);
+            }
+        };
+
+        const handleRegisterStaff = async (event) => {
+            event.preventDefault();
+            setRegisteringStaff(true);
+            setStaffRegistrationError('');
+            try {
+                const res = await fetch(`${API_BASE}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        username: staffUsername,
+                        password: staffPassword,
+                        fullName: staffFullName,
+                        role: 'ROLE_STAFF'
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    const message = data.message || Object.values(data).join(' ');
+                    throw new Error(message || `Unable to create staff account (${res.status}).`);
+                }
+
+                setStaffUsername('');
+                setStaffFullName('');
+                setStaffPassword('');
+                showNotice(`Staff account "${data.username}" created successfully.`);
+            } catch (error) {
+                setStaffRegistrationError(error.message || 'Unable to create staff account.');
+            } finally {
+                setRegisteringStaff(false);
             }
         };
 
@@ -326,7 +366,8 @@ import { useEffect, useState } from 'react';
                                 { id: 'inventory', label: 'Inventory', icon: '📦' },
                                 { id: 'pos', label: 'Point of Sale', icon: '🛒' },
                                 { id: 'restock', label: 'Smart Restock', icon: '🔔', badge: lowStockProducts.length },
-                                { id: 'analytics', label: 'Sales History', icon: '📈' }
+                                { id: 'analytics', label: 'Sales History', icon: '📈' },
+                                ...(user.role === 'ROLE_OWNER' ? [{ id: 'team', label: 'Team', icon: '👥' }] : [])
                             ].map(tab => (
                                 <button
                                     key={tab.id}
@@ -777,6 +818,66 @@ import { useEffect, useState } from 'react';
                                 </table>
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === 'team' && user.role === 'ROLE_OWNER' && (
+                        <section className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <h2 className="text-xl font-bold text-slate-900">Create a staff account</h2>
+                            <p className="mt-2 text-sm text-slate-600">
+                                New accounts are staff-only. Staff can sign in to this shop but cannot manage accounts or products.
+                            </p>
+                            <form onSubmit={handleRegisterStaff} className="mt-6 space-y-4">
+                                <label className="block text-sm font-medium text-slate-700">
+                                    Full name
+                                    <input
+                                        autoComplete="name"
+                                        maxLength={100}
+                                        required
+                                        value={staffFullName}
+                                        onChange={event => setStaffFullName(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                                    />
+                                </label>
+                                <label className="block text-sm font-medium text-slate-700">
+                                    Username
+                                    <input
+                                        autoComplete="username"
+                                        minLength={3}
+                                        maxLength={50}
+                                        required
+                                        value={staffUsername}
+                                        onChange={event => setStaffUsername(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                                    />
+                                </label>
+                                <label className="block text-sm font-medium text-slate-700">
+                                    Password
+                                    <input
+                                        type="password"
+                                        autoComplete="new-password"
+                                        minLength={12}
+                                        maxLength={100}
+                                        required
+                                        value={staffPassword}
+                                        onChange={event => setStaffPassword(event.target.value)}
+                                        className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+                                    />
+                                    <span className="mt-1 block text-xs text-slate-500">Use at least 12 characters.</span>
+                                </label>
+                                {staffRegistrationError && (
+                                    <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                                        {staffRegistrationError}
+                                    </p>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={registeringStaff}
+                                    className="w-full rounded-lg bg-emerald-700 px-4 py-3 font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {registeringStaff ? 'Creating account…' : 'Create staff account'}
+                                </button>
+                            </form>
+                        </section>
                     )}
                 </main>
 

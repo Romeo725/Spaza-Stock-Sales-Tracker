@@ -18,7 +18,7 @@ A full-stack inventory management, point-of-sale (POS), low-stock alert, and sma
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Spring Boot 3 (Java 21), Spring Security, Spring Data JPA, H2 / MySQL / PostgreSQL.
+- **Backend**: Spring Boot 3 (Java 25), Spring Security, Spring Data JPA, H2 / MySQL / PostgreSQL.
 - **Frontend**: React 18 and Tailwind CSS, built with Vite and served by Spring Boot.
 - **Build Tool**: Maven.
 

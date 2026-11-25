@@ -6,7 +6,7 @@ RUN cd frontend && npm ci
 COPY frontend ./frontend
 RUN cd frontend && npm run build
 
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 
 WORKDIR /workspace
 COPY pom.xml .
@@ -14,7 +14,7 @@ COPY src ./src
 COPY --from=frontend /workspace/frontend/dist ./frontend/dist
 RUN mvn -B -DskipTests package
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 
 WORKDIR /app
 COPY --from=build /workspace/target/*.jar app.jar
