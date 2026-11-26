@@ -6,8 +6,6 @@
     <title>Spaza Stock & Sales Tracker</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- React & ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -25,18 +23,42 @@
 <script type="text/babel">
     const { useState, useEffect } = React;
 
-    const API_BASE = '/api';
+    // Detect if running on GitHub Pages or static host where backend isn't reachable
+    const isStaticHost = window.location.hostname.includes('github.io');
+    const API_BASE = isStaticHost ? '' : '/api';
+
+    // Default Mock Data for Static Hosting (GitHub Pages)
+    const DEFAULT_PRODUCTS = [
+        { id: 1, name: "Albany Superior White Bread 700g", category: "Bakery", price: 17.50, quantity: 15, reorderLevel: 5, supplierName: "Albany Bakery" },
+        { id: 2, name: "Clover Full Cream Milk 2L", category: "Dairy", price: 34.90, quantity: 3, reorderLevel: 5, supplierName: "Clover SA" },
+        { id: 3, name: "Iwisa Super Maize Meal 5kg", category: "Staples", price: 69.00, quantity: 8, reorderLevel: 4, supplierName: "Premier Foods" },
+        { id: 4, name: "Huletts White Sugar 2kg", category: "Staples", price: 48.50, quantity: 2, reorderLevel: 5, supplierName: "Tongaat Hulett" },
+        { id: 5, name: "Sunfoil Sunflower Cooking Oil 750ml", category: "Groceries", price: 32.00, quantity: 12, reorderLevel: 4, supplierName: "Willowton Group" },
+        { id: 6, name: "Coca-Cola Original Taste 1.25L", category: "Beverages", price: 21.00, quantity: 1, reorderLevel: 6, supplierName: "Coca-Cola SA" },
+        { id: 7, name: "Sunlight Laundry Soap Bar 500g", category: "Household", price: 18.50, quantity: 20, reorderLevel: 5, supplierName: "Unilever" },
+        { id: 8, name: "Simba Potato Chips Smoked Beef 120g", category: "Snacks", price: 16.00, quantity: 25, reorderLevel: 8, supplierName: "PepsiCo SA" }
+    ];
+
+    const DEFAULT_SALES = [
+        { id: 101, productId: 1, productName: "Albany Superior White Bread 700g", quantity: 2, unitPrice: 17.50, totalPrice: 35.00, saleDate: new Date(Date.now() - 14400000).toISOString(), recordedByUsername: "staff" },
+        { id: 102, productId: 2, productName: "Clover Full Cream Milk 2L", quantity: 1, unitPrice: 34.90, totalPrice: 34.90, saleDate: new Date(Date.now() - 7200000).toISOString(), recordedByUsername: "owner" }
+    ];
 
     function App() {
         const [activeTab, setActiveTab] = useState('dashboard');
         const [user, setUser] = useState({ username: 'owner', fullName: 'Romeo Mangena (Owner)', role: 'ROLE_OWNER' });
-        const [token, setToken] = useState(localStorage.getItem('token') || '');
+        const [token, setToken] = useState('mock-jwt-token');
 
-        const [products, setProducts] = useState([]);
-        const [lowStockProducts, setLowStockProducts] = useState([]);
-        const [restockSuggestions, setRestockSuggestions] = useState([]);
-        const [sales, setSales] = useState([]);
-        const [summary, setSummary] = useState(null);
+        const [products, setProducts] = useState(() => {
+            const saved = localStorage.getItem('spaza_products');
+            return saved ? JSON.parse(saved) : DEFAULT_PRODUCTS;
+        });
+
+        const [sales, setSales] = useState(() => {
+            const saved = localStorage.getItem('spaza_sales');
+            return saved ? JSON.parse(saved) : DEFAULT_SALES;
+        });
+
         const [loading, setLoading] = useState(false);
         const [notification, setNotification] = useState(null);
 
@@ -53,142 +75,119 @@
         const [selectedCategory, setSelectedCategory] = useState('ALL');
 
         useEffect(() => {
-            fetchData();
-        }, []);
+            localStorage.setItem('spaza_products', JSON.stringify(products));
+        }, [products]);
+
+        useEffect(() => {
+            localStorage.setItem('spaza_sales', JSON.stringify(sales));
+        }, [sales]);
 
         const showNotice = (msg, type = 'success') => {
             setNotification({ msg, type });
             setTimeout(() => setNotification(null), 4000);
         };
 
-        const fetchData = async () => {
-            setLoading(true);
-            try {
-                const [prodRes, lowRes, restockRes, salesRes, sumRes] = await Promise.all([
-                    fetch(`${API_BASE}/products`),
-                    fetch(`${API_BASE}/products/low-stock`),
-                    fetch(`${API_BASE}/products/restock-suggestions`),
-                    fetch(`${API_BASE}/sales`),
-                    fetch(`${API_BASE}/dashboard/summary`)
-                ]);
-
-                if (prodRes.ok) setProducts(await prodRes.json());
-                if (lowRes.ok) setLowStockProducts(await lowRes.json());
-                if (restockRes.ok) setRestockSuggestions(await restockRes.json());
-                if (salesRes.ok) setSales(await salesRes.json());
-                if (sumRes.ok) setSummary(await sumRes.json());
-            } catch (err) {
-                console.error("Error fetching data:", err);
-            } finally {
-                setLoading(false);
+        const handleQuickLogin = (roleType) => {
+            if (roleType === 'OWNER') {
+                setUser({ username: 'owner', fullName: 'Romeo Mangena (Owner)', role: 'ROLE_OWNER' });
+                showNotice('Logged in as Owner (Romeo Mangena)');
+            } else {
+                setUser({ username: 'staff', fullName: 'Thabo Mokoena (Staff)', role: 'ROLE_STAFF' });
+                showNotice('Logged in as Staff (Thabo Mokoena)');
             }
         };
 
-        const handleQuickLogin = async (roleType) => {
-            const username = roleType === 'OWNER' ? 'owner' : 'staff';
-            try {
-                const res = await fetch(`${API_BASE}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password: 'password123' })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    setUser({ username: data.username, fullName: data.fullName, role: data.role });
-                    setToken(data.token);
-                    localStorage.setItem('token', data.token);
-                    showNotice(`Logged in as ${data.fullName} (${data.role})`);
-                }
-            } catch (e) {
-                showNotice(`Logged in as ${username.toUpperCase()} (Offline Mode)`);
-                setUser({
-                    username,
-                    fullName: roleType === 'OWNER' ? 'Romeo Mangena (Owner)' : 'Thabo Mokoena (Staff)',
-                    role: roleType === 'OWNER' ? 'ROLE_OWNER' : 'ROLE_STAFF'
-                });
-            }
-        };
-
-        const handleRecordSale = async (e) => {
+        const handleRecordSale = (e) => {
             e.preventDefault();
             if (!posProductId) {
                 showNotice('Please select a product', 'error');
                 return;
             }
-            try {
-                const res = await fetch(`${API_BASE}/sales`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ productId: parseInt(posProductId), quantity: parseInt(posQuantity) })
-                });
 
-                if (res.ok) {
-                    showNotice('Sale recorded successfully!');
-                    setPosQuantity(1);
-                    fetchData();
-                } else {
-                    const err = await res.json();
-                    showNotice(err.message || 'Failed to record sale', 'error');
-                }
-            } catch (err) {
-                showNotice('Error recording sale', 'error');
+            const pId = parseInt(posProductId);
+            const prod = products.find(p => p.id === pId);
+            if (!prod) {
+                showNotice('Product not found', 'error');
+                return;
             }
+
+            const qty = parseInt(posQuantity);
+            if (prod.quantity < qty) {
+                showNotice(`Insufficient stock for ${prod.name}. Available: ${prod.quantity}`, 'error');
+                return;
+            }
+
+            // Update product stock
+            const updatedProducts = products.map(p => p.id === pId ? { ...p, quantity: p.quantity - qty } : p);
+            setProducts(updatedProducts);
+
+            // Create new sale
+            const newSale = {
+                id: Date.now(),
+                productId: prod.id,
+                productName: prod.name,
+                quantity: qty,
+                unitPrice: prod.price,
+                totalPrice: prod.price * qty,
+                saleDate: new Date().toISOString(),
+                recordedByUsername: user.username
+            };
+            setSales([newSale, ...sales]);
+            setPosQuantity(1);
+            showNotice(`Sale recorded successfully! Total: R${(prod.price * qty).toFixed(2)}`);
         };
 
-        const handleSaveProduct = async (productData) => {
-            try {
-                const url = editingProduct ? `${API_BASE}/products/${editingProduct.id}` : `${API_BASE}/products`;
-                const method = editingProduct ? 'PUT' : 'POST';
-
-                const res = await fetch(url, {
-                    method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(productData)
-                });
-
-                if (res.ok) {
-                    showNotice(`Product ${editingProduct ? 'updated' : 'added'} successfully!`);
-                    setIsAddModalOpen(false);
-                    setEditingProduct(null);
-                    fetchData();
-                } else {
-                    showNotice('Failed to save product', 'error');
-                }
-            } catch (err) {
-                showNotice('Error saving product', 'error');
+        const handleSaveProduct = (productData) => {
+            if (editingProduct) {
+                const updated = products.map(p => p.id === editingProduct.id ? { ...p, ...productData, updatedAt: new Date().toISOString() } : p);
+                setProducts(updated);
+                showNotice('Product updated successfully!');
+            } else {
+                const newP = {
+                    id: Date.now(),
+                    ...productData,
+                    reorderLevel: productData.reorderLevel || 5,
+                    createdAt: new Date().toISOString()
+                };
+                setProducts([...products, newP]);
+                showNotice('Product added successfully!');
             }
+            setIsAddModalOpen(false);
+            setEditingProduct(null);
         };
 
-        const handleDeleteProduct = async (id) => {
+        const handleDeleteProduct = (id) => {
             if (!confirm('Are you sure you want to delete this product?')) return;
-            try {
-                const res = await fetch(`${API_BASE}/products/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    showNotice('Product deleted successfully');
-                    fetchData();
-                }
-            } catch (e) {
-                showNotice('Error deleting product', 'error');
-            }
+            setProducts(products.filter(p => p.id !== id));
+            showNotice('Product deleted successfully');
         };
 
-        const handleRestockOneClick = async (productId, addQty) => {
-            try {
-                const res = await fetch(`${API_BASE}/products/${productId}/restock?quantity=${addQty}`, { method: 'POST' });
-                if (res.ok) {
-                    showNotice(`Restocked ${addQty} units successfully!`);
-                    fetchData();
-                }
-            } catch (e) {
-                showNotice('Restock failed', 'error');
-            }
+        const handleRestockOneClick = (productId, addQty) => {
+            setProducts(products.map(p => p.id === productId ? { ...p, quantity: p.quantity + addQty } : p));
+            showNotice(`Successfully restocked +${addQty} units!`);
         };
+
+        const lowStockProducts = products.filter(p => p.quantity <= p.reorderLevel);
+
+        const restockSuggestions = lowStockProducts.map(p => {
+            const targetQty = Math.max(p.reorderLevel * 2, 10);
+            const recommendedQty = Math.max(targetQty - p.quantity, 1);
+            return {
+                productId: p.id,
+                productName: p.name,
+                category: p.category,
+                currentStock: p.quantity,
+                reorderLevel: p.reorderLevel,
+                recommendedOrderQuantity: recommendedQty,
+                unitPrice: p.price,
+                estimatedRestockCost: p.price * recommendedQty,
+                supplierName: p.supplierName || 'Local Wholesaler',
+                urgency: p.quantity === 0 ? 'CRITICAL' : p.quantity <= p.reorderLevel / 2 ? 'HIGH' : 'WARNING'
+            };
+        });
+
+        const totalRevenue = sales.reduce((sum, s) => sum + s.totalPrice, 0);
+        const totalInventoryValue = products.reduce((sum, p) => sum + (p.price * p.quantity), 0);
 
         const filteredProducts = products.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -280,7 +279,7 @@
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-semibold uppercase text-slate-400">Total Sales Revenue</p>
-                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{summary ? summary.totalRevenue.toFixed(2) : '0.00'}</h3>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{totalRevenue.toFixed(2)}</h3>
                                         <p className="text-xs text-emerald-600 mt-1">Total recorded sales</p>
                                     </div>
                                     <div className="bg-emerald-100 text-emerald-600 p-3 rounded-xl">💰</div>
@@ -289,7 +288,7 @@
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-semibold uppercase text-slate-400">Total Products</p>
-                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">{summary ? summary.totalProductsCount : 0}</h3>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">{products.length}</h3>
                                         <p className="text-xs text-slate-500 mt-1">Inventory items</p>
                                     </div>
                                     <div className="bg-blue-100 text-blue-600 p-3 rounded-xl">📦</div>
@@ -298,7 +297,7 @@
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-semibold uppercase text-slate-400">Low Stock Warnings</p>
-                                        <h3 className="text-2xl font-bold text-amber-600 mt-1">{summary ? summary.lowStockCount : 0}</h3>
+                                        <h3 className="text-2xl font-bold text-amber-600 mt-1">{lowStockProducts.length}</h3>
                                         <p className="text-xs text-amber-600 mt-1">Requires attention</p>
                                     </div>
                                     <div className="bg-amber-100 text-amber-600 p-3 rounded-xl">⚠️</div>
@@ -307,7 +306,7 @@
                                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-semibold uppercase text-slate-400">Total Stock Value</p>
-                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{summary ? summary.totalInventoryValue.toFixed(2) : '0.00'}</h3>
+                                        <h3 className="text-2xl font-bold text-slate-900 mt-1">R{totalInventoryValue.toFixed(2)}</h3>
                                         <p className="text-xs text-slate-500 mt-1">Current asset valuation</p>
                                     </div>
                                     <div className="bg-purple-100 text-purple-600 p-3 rounded-xl">🏷️</div>
@@ -728,7 +727,7 @@
                                         <input name="category" defaultValue={editingProduct ? editingProduct.category : 'General'} required className="w-full p-2.5 border rounded-lg" />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-slate-700 mb-1">Price (R)</label>
+                                        <label className="block text-xs font-semibold text-slate-700 md:col-span-2">Price (R)</label>
                                         <input name="price" type="number" step="0.01" defaultValue={editingProduct ? editingProduct.price : ''} required className="w-full p-2.5 border rounded-lg" />
                                     </div>
                                 </div>
