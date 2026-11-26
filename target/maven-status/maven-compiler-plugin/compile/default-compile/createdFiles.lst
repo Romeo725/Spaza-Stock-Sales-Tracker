@@ -22,6 +22,7 @@ com\romeo\spaza\service\SaleService.class
 com\romeo\spaza\model\Product.class
 com\romeo\spaza\dto\SaleResponse$SaleResponseBuilder.class
 com\romeo\spaza\model\Product$ProductBuilder.class
+com\romeo\spaza\config\ProductionOwnerInitializer.class
 com\romeo\spaza\security\JwtUtils.class
 com\romeo\spaza\exception\ResourceNotFoundException.class
 com\romeo\spaza\controller\ProductController.class
