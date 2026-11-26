@@ -7,6 +7,13 @@
 
 ---
 
+## 🌐 Live Deployment Links
+* **GitHub Codespaces Live App:** [https://scaling-space-barnacle-r6qxxr67wqrfwqj-8080.app.github.dev/](https://scaling-space-barnacle-r6qxxr67wqrfwqj-8080.app.github.dev/)
+* **GitHub Pages Landing Page:** [https://romeo725.github.io/Spaza-Stock-Sales-Tracker/landing.html](https://romeo725.github.io/Spaza-Stock-Sales-Tracker/landing.html)
+* **GitHub Repository:** [https://github.com/Romeo725/Spaza-Stock-Sales-Tracker](https://github.com/Romeo725/Spaza-Stock-Sales-Tracker)
+
+---
+
 ## 01. Establishment & Problem Statement
 
 ### The Establishment (Route A)
