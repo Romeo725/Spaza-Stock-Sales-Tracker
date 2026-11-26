@@ -92,4 +92,33 @@ class ProductServiceTest {
         assertEquals("Milk 2L", created.getName());
         verify(productRepository, times(1)).save(any(Product.class));
     }
+
+    @Test
+    void testUpdateProductLocksProductBeforeChangingStock() {
+        ProductDto dto = ProductDto.builder()
+                .name("White Bread")
+                .category("Bakery")
+                .price(new BigDecimal("18.00"))
+                .quantity(6)
+                .reorderLevel(4)
+                .build();
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testProduct));
+        when(productRepository.save(testProduct)).thenReturn(testProduct);
+
+        ProductDto updated = productService.updateProduct(1L, dto);
+
+        assertEquals(6, updated.getQuantity());
+        verify(productRepository).findByIdForUpdate(1L);
+    }
+
+    @Test
+    void testRestockProductLocksProductBeforeAddingStock() {
+        when(productRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(testProduct));
+        when(productRepository.save(testProduct)).thenReturn(testProduct);
+
+        ProductDto restocked = productService.restockProduct(1L, 4);
+
+        assertEquals(7, restocked.getQuantity());
+        verify(productRepository).findByIdForUpdate(1L);
+    }
 }

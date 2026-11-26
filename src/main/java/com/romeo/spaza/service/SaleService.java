@@ -32,7 +32,17 @@ public class SaleService {
 
     @Transactional
     public SaleResponse recordSale(SaleRequest request) {
-        Product product = productRepository.findById(request.getProductId())
+        if (request == null) {
+            throw new IllegalArgumentException("Sale request cannot be null");
+        }
+        if (request.getProductId() == null) {
+            throw new ResourceNotFoundException("Product id is required");
+        }
+        if (request.getQuantity() == null || request.getQuantity() <= 0) {
+            throw new IllegalArgumentException("Sale quantity must be greater than zero");
+        }
+
+        Product product = productRepository.findByIdForUpdate(request.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + request.getProductId()));
 
         if (product.getQuantity() < request.getQuantity()) {

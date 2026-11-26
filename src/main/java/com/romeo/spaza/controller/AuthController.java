@@ -7,11 +7,11 @@ import com.romeo.spaza.model.User;
 import com.romeo.spaza.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
 
     private final AuthService authService;
@@ -26,16 +26,23 @@ public class AuthController {
     }
 
     @PostMapping("/register")
+    @PreAuthorize("hasRole('OWNER')")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser() {
+    public ResponseEntity<AuthResponse> getCurrentUser() {
         User currentUser = authService.getCurrentUser();
         if (currentUser == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(currentUser);
+        AuthResponse response = AuthResponse.builder()
+                .id(currentUser.getId())
+                .username(currentUser.getUsername())
+                .fullName(currentUser.getFullName())
+                .role(currentUser.getRole())
+                .build();
+        return ResponseEntity.ok(response);
     }
 }
